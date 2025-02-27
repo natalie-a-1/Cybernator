@@ -9,11 +9,11 @@ from network_analyzer import NetworkAnalyzer
 import textwrap
 import json
 import os
+import re
 
 class LabAutomation:
-    def __init__(self, use_rdp=True):
+    def __init__(self, use_rdp=False):
         self.use_rdp = use_rdp
-        self.vm = VMConnection() if not use_rdp else RDPConnection()
         self.logger = Logger()
         self.client = OpenAI(api_key=OPENAI_API_KEY)
         self.command_processor = CommandProcessor(self.client)
@@ -23,6 +23,12 @@ class LabAutomation:
         self.network_analyzer = NetworkAnalyzer()
         self.lab_components = None
         self.strategy = None
+        
+        # Initialize VM connection based on preference
+        if use_rdp:
+            self.vm = RDPConnection()
+        else:
+            self.vm = VMConnection()
 
     def get_output_explanation(self, command, output):
         """Generate explanation for command output"""
@@ -49,6 +55,13 @@ class LabAutomation:
         print(f"Objective: {self.lab_components.get('objective', 'Unknown')}")
         print(f"Target: {self.lab_components.get('target', 'Unknown')}")
         print(f"Approach: {self.lab_components.get('approach', 'Unknown')}")
+        
+        # Extract target from lab components if present
+        target_str = str(self.lab_components.get('target', ''))
+        target_match = re.search(r'([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})', target_str)
+        if target_match:
+            self.current_target = target_match.group(1)
+            print(f"Target identified from lab document: {self.current_target}")
         
         print("\nDetermining lab strategy...")
         self.strategy = self.lab_strategy.determine_approach(self.lab_components)
@@ -79,6 +92,12 @@ class LabAutomation:
         print(f"Generated command: {command}")
         print(f"Command type: {command_type}")
         
+        # If we have a target from the lab document, ensure it's used in the command
+        if hasattr(self, 'current_target') and self.current_target:
+            # Replace any subnet scans with the specific target
+            command = command.replace('192.168.13.0/24', self.current_target)
+            print(f"Using target from lab document: {self.current_target}")
+        
         # Use network analyzer to optimize command execution
         print("Optimizing command based on network information...")
         strategy = self.network_analyzer.get_command_execution_strategy(command, command_type)
@@ -105,6 +124,10 @@ class LabAutomation:
         
         # Generate explanation for the output
         if output:
+            # Print the actual command output for the user to see
+            print("\nCommand Output:")
+            print(output)
+            
             output_explanation = self.get_output_explanation(optimized_command, output)
             # Combine the selection explanation and output explanation
             full_explanation = f"{selection_explanation}\n\nOutput Analysis:\n{output_explanation}"
@@ -207,16 +230,45 @@ class LabAutomation:
         """Main lab execution flow"""
         try:
             print("Connecting to Kali VM...")
-            # Connect to VM with timeout
+            
+            # Try to connect with the current connection method
             if not self.vm.connect():
-                print("Failed to connect to VM. Please check:")
-                print("- VM is running and accessible")
-                print("- SSH service is running on the VM")
-                print("- IP address and port are correct")
-                print("- Username and password are correct")
-                return
+                # If using SSH and it fails, try RDP as fallback
+                if not self.use_rdp:
+                    print("SSH connection failed. Trying RDP as fallback...")
+                    self.use_rdp = True
+                    self.vm = RDPConnection()
+                    if not self.vm.connect():
+                        print("Both SSH and RDP connections failed. Please check:")
+                        print("- VM is running and accessible")
+                        print("- SSH/RDP services are running on the VM")
+                        print("- IP address and port are correct")
+                        print("- Username and password are correct")
+                        return
+                    else:
+                        print("RDP fallback connection successful.")
+                else:
+                    # If RDP failed and it was the primary method
+                    print("Failed to connect to VM. Please check:")
+                    print("- VM is running and accessible")
+                    print("- RDP service is running on the VM")
+                    print("- IP address and port are correct")
+                    print("- Username and password are correct")
+                    return
+                
+            # For SSH connections, verify we're connected to a Kali system
+            if hasattr(self.vm, 'is_kali') and not self.vm.is_kali:
+                print("⚠️ Warning: Connected to a system, but it doesn't appear to be Kali Linux")
+                print("Some commands may not work as expected.")
+                # Continue anyway since we have a connection
 
-            print("Connected to VM successfully.")
+            # Display connection type
+            if self.use_rdp:
+                print("Connected to VM successfully via RDP.")
+                print("Note: Using RDP for command execution. Screenshots will be captured but command output may be limited.")
+            else:
+                print("Connected to VM successfully via SSH.")
+                print("Note: Using SSH for command execution. Full command output will be captured.")
             print("\nEnter lab instructions (full lab document or individual instructions)")
             print("You can paste a complete lab document or enter instructions one by one.")
             print("Type 'done' on a new line when finished:")
@@ -309,5 +361,5 @@ class LabAutomation:
 
 # Entry point
 if __name__ == "__main__":
-    lab = LabAutomation(use_rdp=True)  # Use RDP by default
+    lab = LabAutomation(use_rdp=False)  # Use SSH by default for reliable output capture
     lab.run_lab()

@@ -65,6 +65,11 @@ class LabInstructionParser:
         title_match = re.search(r'#\s*(.+?)(?=\n|$)', text)
         if title_match:
             components["title"] = title_match.group(1).strip()
+        else:
+            # Try to find the first line as title
+            first_line = text.strip().split('\n')[0]
+            if first_line and len(first_line) < 100:  # Reasonable title length
+                components["title"] = first_line.strip()
         
         # Extract objective (often contains words like "objective", "goal", "task")
         objective_patterns = [
@@ -83,17 +88,38 @@ class LabInstructionParser:
         if task_matches:
             components["tasks"] = [task.strip() for task in task_matches]
         
-        # Extract target (what needs to be identified)
-        target_patterns = [
-            r'identify\s+(.+?)(?=\n|\.|,)',
-            r'find\s+(.+?)(?=\n|\.|,)',
-            r'determine\s+(.+?)(?=\n|\.|,)'
-        ]
-        for pattern in target_patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                components["target"] = match.group(1).strip()
-                break
+        # First, try to extract IP addresses directly
+        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b'
+        ip_matches = re.findall(ip_pattern, text)
+        
+        # If we found IP addresses, look for target indicators
+        if ip_matches:
+            # Look for specific target indicators
+            target_indicators = ["target", "host", "machine", "server", "computer"]
+            for indicator in target_indicators:
+                # Look for patterns like "target: 192.168.1.1" or "target host 192.168.1.1"
+                indicator_pattern = rf'{indicator}[:\s]+([0-9]{{1,3}}(?:\.[0-9]{{1,3}}){{3}})'
+                indicator_match = re.search(indicator_pattern, text, re.IGNORECASE)
+                if indicator_match:
+                    components["target"] = indicator_match.group(1)
+                    break
+            
+            # If no specific indicator, use the first IP found
+            if not components["target"] and ip_matches:
+                components["target"] = ip_matches[0]
+        
+        # If no IP found, try other target patterns
+        if not components["target"]:
+            target_patterns = [
+                r'identify\s+(.+?)(?=\n|\.|,)',
+                r'find\s+(.+?)(?=\n|\.|,)',
+                r'determine\s+(.+?)(?=\n|\.|,)'
+            ]
+            for pattern in target_patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    components["target"] = match.group(1).strip()
+                    break
         
         # Extract approach
         if "passive" in text.lower():

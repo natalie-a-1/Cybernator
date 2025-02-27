@@ -1,79 +1,119 @@
+# Cybernator: AI-Powered Cybersecurity Lab Automation
 
-# Cybernator
-
-Cybernator is a Python-based AI system designed to automate cybersecurity lab tasks on a Kali Linux virtual machine (VM). It interprets lab instructions, executes appropriate commands, captures outputs and screenshots, and generates structured logs to help with lab reports.
+Cybernator is a Python-based AI system designed to automate cybersecurity lab tasks on a Kali Linux virtual machine. It interprets lab instructions, executes appropriate commands, captures outputs and screenshots, and generates structured logs to help with lab reports.
 
 ## Features
 
-- **Instruction Interpretation**: Accepts lab instructions as text input and determines the best tools and actions.
-- **Command Execution**: Dynamically generates and executes commands on the Kali VM via SSH or RDP.
-- **Screenshot Capture**: Takes screenshots of the VM window after each command execution.
-- **Explanation Generation**: Provides explanations for each command and its output.
-- **Log Generation**: Creates structured logs with commands, outputs, explanations, and screenshot references.
-- **Network-Aware Scanning**: Optimizes scanning strategies based on network information to avoid triggering IDS/IPS alerts.
+- **Intelligent Lab Instruction Parsing**: Analyzes lab documents to extract objectives, targets, and approaches
+- **Automated Command Generation**: Determines the most appropriate commands based on lab instructions
+- **Kali Linux VM Integration**: Connects to Kali Linux VM via SSH or RDP
+- **Screenshot Capture**: Takes screenshots of command execution for documentation
+- **Structured Logging**: Generates comprehensive logs with commands, outputs, and explanations
+- **Report Generation**: Creates markdown reports summarizing findings and evidence
 
-## Setup
+## Prerequisites
 
-### Prerequisites
-
-- Python 3.8 or higher
+- Python 3.8+
 - Kali Linux VM (accessible via SSH or RDP)
-- OpenAI API key
+- Required Python packages (see `requirements.txt`)
 
-### Installation
+## Installation
 
 1. Clone the repository:
-   ```bash
+   ```
    git clone https://github.com/yourusername/cybernator.git
    cd cybernator
    ```
 
-2. Run the setup script to create a virtual environment and install dependencies:
-   ```bash
-   ./setup_env.sh
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
    ```
 
-3. Create a `.env` file with your configuration:
-   ```bash
-   cp .env.example .env
+3. Configure connection settings in `.env` file:
    ```
+   # SSH Connection (for direct VM access)
+   VM_HOST=your-kali-vm-ip
+   VM_PORT=22
+   VM_USERNAME=kali
+   VM_PASSWORD=your-password
 
-4. Edit the `.env` file with your VM and OpenAI API credentials.
+   # RDP Connection (for GUI access)
+   RDP_HOST=your-kali-vm-ip
+   RDP_PORT=3389
+   RDP_USERNAME=kali
+   RDP_PASSWORD=your-password
+
+   # OpenAI API Key
+   OPENAI_API_KEY=your-openai-api-key
+   ```
 
 ## Usage
 
-1. Activate the virtual environment:
-   ```bash
-   source venv/bin/activate
-   ```
+### Running the Main Application
 
-2. Run the Cybernator:
-   ```bash
-   python main.py
-   ```
+```
+python main.py
+```
 
-3. When prompted, enter your lab instructions. You can paste a complete lab document or enter instructions one by one.
+The application will:
+1. Connect to your Kali VM
+2. Prompt you to enter lab instructions
+3. Analyze the instructions and determine the best approach
+4. Execute commands on the VM
+5. Capture screenshots and outputs
+6. Generate a structured log and report
 
-4. The system will analyze the instructions, determine the best approach, and execute the appropriate commands on the VM.
+### Testing VM Connection
 
-5. After execution, you'll find logs and screenshots in the `lab_logs` directory.
+To verify your connection to the Kali VM:
 
-## Network Information Enhancement
+```
+# Test SSH connection
+python test_kali_connection.py
 
-Cybernator includes a network information enhancement that allows it to make intelligent decisions about command execution based on network information. This helps avoid triggering IDS/IPS alerts while optimizing scanning strategies.
+# Test RDP connection
+python test_rdp_connection.py
+```
 
-For more information, see [NETWORK_INFO.md](NETWORK_INFO.md).
+These scripts will:
+1. Attempt to connect to your Kali VM
+2. Verify it's actually a Kali Linux system
+3. Run basic commands to test functionality
+4. Report the results
+
+## Configuration
+
+### Command Templates
+
+Command templates are defined in `config.py` and can be customized to add new command types or modify existing ones.
+
+### Network Analysis
+
+The `network_analyzer.py` module optimizes command execution based on network conditions and security considerations.
 
 ## Troubleshooting
 
-If you encounter issues with the RDP connection, make sure:
-- The VM is running and accessible
-- RDP service is running on the VM
-- IP address and port are correct
-- Username and password are correct
+### Connection Issues
 
-If you see deprecation warnings related to TripleDES, you can ignore them or update the cryptography package to a newer version.
+If you're having trouble connecting to your Kali VM:
+
+1. Verify your VM is running and accessible
+2. Check your connection settings in the `.env` file
+3. Run the connection test scripts to diagnose issues:
+   ```
+   python test_kali_connection.py  # For SSH
+   python test_rdp_connection.py   # For RDP
+   ```
+
+### Command Execution Issues
+
+If commands aren't executing properly:
+
+1. Check if your VM is actually running Kali Linux
+2. Verify the required tools are installed on your Kali VM
+3. Check the logs for error messages
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+[MIT License](LICENSE)

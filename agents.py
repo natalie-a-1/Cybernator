@@ -1,6 +1,7 @@
 from openai import OpenAI
 from config import COMMAND_TEMPLATES, DEFAULT_PARAMS
 import json
+import re
 
 class ContextAnalyzer:
     """Agent responsible for analyzing lab instructions and extracting context"""
@@ -10,6 +11,27 @@ class ContextAnalyzer:
     
     def analyze(self, instruction):
         """Extract key parameters and context from the instruction"""
+        # First, try to extract IP addresses directly using regex
+        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b'
+        ip_matches = re.findall(ip_pattern, instruction)
+        
+        # If we found IP addresses, prioritize them as targets
+        direct_target = None
+        if ip_matches:
+            # Look for specific target indicators
+            target_indicators = ["target", "host", "machine", "server", "computer"]
+            for indicator in target_indicators:
+                # Look for patterns like "target: 192.168.1.1" or "target host 192.168.1.1"
+                indicator_pattern = rf'{indicator}[:\s]+([0-9]{{1,3}}(?:\.[0-9]{{1,3}}){{3}})'
+                indicator_match = re.search(indicator_pattern, instruction, re.IGNORECASE)
+                if indicator_match:
+                    direct_target = indicator_match.group(1)
+                    break
+            
+            # If no specific indicator, use the first IP found
+            if not direct_target and ip_matches:
+                direct_target = ip_matches[0]
+        
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4",
@@ -24,6 +46,8 @@ class ContextAnalyzer:
                     
                     Return a JSON object with these parameters. If a parameter is not specified in the instruction,
                     use null as the value. Be specific and extract only what's explicitly mentioned or strongly implied.
+                    
+                    IMPORTANT: If you see an IP address in the instruction, it is likely the target.
                     """},
                     {"role": "user", "content": f"Instruction: {instruction}"}
                 ]
@@ -50,6 +74,11 @@ class ContextAnalyzer:
                     "techniques": None,
                     "tools": None
                 }
+            
+            # Override with direct target if found
+            if direct_target:
+                context["target"] = direct_target
+                print(f"Target identified from instruction: {direct_target}")
             
             return context
             
