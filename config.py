@@ -20,6 +20,61 @@ RDP_PASSWORD = os.getenv('RDP_PASSWORD')
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
+# Network Configuration
+NETWORK_CONFIG = {
+    "subnet": os.getenv('NETWORK_SUBNET'),
+    "gateway": os.getenv('NETWORK_GATEWAY'),
+    "interface": os.getenv('NETWORK_INTERFACE')
+}
+
+# Traffic Baselines
+TRAFFIC_BASELINES = {
+    "rx_pps": float(os.getenv('BASELINE_RX_PPS')),
+    "tx_pps": float(os.getenv('BASELINE_TX_PPS'))
+}
+
+# Common Protocols and Ports
+COMMON_PROTOCOLS = {
+    "tcp_ports": os.getenv('COMMON_TCP_PORTS').split(','),
+    "udp_ports": os.getenv('COMMON_UDP_PORTS').split(',')
+}
+
+# Timeouts
+TIMEOUTS = {
+    "tcp_fin": int(os.getenv('TCP_FIN_TIMEOUT')),
+    "apache": int(os.getenv('APACHE_TIMEOUT')),
+    "keepalive": int(os.getenv('KEEPALIVE_TIMEOUT'))
+}
+
+# Security Status
+SECURITY_STATUS = {
+    "ids_present": os.getenv('IDS_PRESENT').lower() == 'true',
+    "waf_present": os.getenv('WAF_PRESENT').lower() == 'true',
+    "firewall_policy": os.getenv('FIREWALL_DEFAULT_POLICY')
+}
+
+# Monitoring Tools
+MONITORING = {
+    "available_tools": os.getenv('AVAILABLE_TOOLS').split(','),
+    "active_monitoring": os.getenv('ACTIVE_MONITORING').lower() == 'true',
+    "scheduled_monitoring": os.getenv('SCHEDULED_MONITORING').lower() == 'true'
+}
+
+# Rate Limiting Status
+RATE_LIMITS = {
+    "api": os.getenv('API_RATE_LIMITS').lower() == 'true',
+    "dns": os.getenv('DNS_RATE_LIMITS').lower() == 'true',
+    "scan": os.getenv('SCAN_RATE_LIMITS').lower() == 'true'
+}
+
+# Scan Strategy Optimization
+SCAN_STRATEGY = {
+    "max_scan_rate": int(os.getenv('MAX_SCAN_RATE')),
+    "recommended_interval": int(os.getenv('RECOMMENDED_SCAN_INTERVAL')),
+    "stealth_required": os.getenv('STEALTH_MODE_REQUIRED').lower() == 'true',
+    "safe_scan_window": os.getenv('SAFE_SCAN_WINDOW')
+}
+
 # Command Templates with placeholders for customization
 COMMAND_TEMPLATES = {
     # Network Reconnaissance
@@ -49,17 +104,17 @@ COMMAND_TEMPLATES = {
     "netcat_scan": "nc -zv {target} {port_range}"
 }
 
-# Default parameter values
+# Default parameter values - Updated based on network information
 DEFAULT_PARAMS = {
-    "interface": "eth0",
+    "interface": NETWORK_CONFIG["interface"],
     "verbosity": "-v",
-    "target": "192.168.1.0/24",
+    "target": NETWORK_CONFIG["subnet"],
     "top_ports": "--top-ports 20",
     "additional_flags": "",
     "additional_filters": "",
-    "port_list": "21,22,23,25,80,443,3389",
+    "port_list": ",".join(COMMON_PROTOCOLS["tcp_ports"]),
     "port_range": "1-1000",
-    "initial_port": "80",
+    "initial_port": COMMON_PROTOCOLS["tcp_ports"][0],
     "target_network": "--localnet",
-    "rate": "1000"
+    "rate": str(SCAN_STRATEGY["max_scan_rate"])
 }

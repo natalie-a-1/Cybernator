@@ -5,6 +5,7 @@ from logger import Logger
 from config import OPENAI_API_KEY
 from agents import CommandProcessor
 from lab_parser import LabInstructionParser, LabStrategy, EvidenceCollector
+from network_analyzer import NetworkAnalyzer
 import textwrap
 import json
 import os
@@ -19,6 +20,7 @@ class LabAutomation:
         self.lab_parser = LabInstructionParser(self.client)
         self.lab_strategy = LabStrategy(self.client)
         self.evidence_collector = EvidenceCollector()
+        self.network_analyzer = NetworkAnalyzer()
         self.lab_components = None
         self.strategy = None
 
@@ -77,23 +79,40 @@ class LabAutomation:
         print(f"Generated command: {command}")
         print(f"Command type: {command_type}")
         
-        # Execute command on VM
-        output, error = self.vm.execute(command)
+        # Use network analyzer to optimize command execution
+        print("Optimizing command based on network information...")
+        strategy = self.network_analyzer.get_command_execution_strategy(command, command_type)
+        optimized_command = strategy["command"]
+        
+        if optimized_command != command:
+            print(f"Optimized command: {optimized_command}")
+            
+        if not strategy["safe_to_scan"]:
+            print("WARNING: Scanning may trigger IDS/IPS alerts. Proceeding with caution.")
+            
+        if strategy["split_scan"]:
+            print(f"Using split scan strategy with delay of {strategy['delay']} seconds between operations.")
+            
+        # Execute optimized command on VM
+        def execute_func(cmd):
+            return self.vm.execute(cmd)
+            
+        output, error = self.network_analyzer.execute_with_strategy(command, command_type, execute_func)
         
         # Process output for evidence collection
         if output and not error:
-            self._process_output_for_evidence(command, command_type, output)
+            self._process_output_for_evidence(optimized_command, command_type, output)
         
         # Generate explanation for the output
         if output:
-            output_explanation = self.get_output_explanation(command, output)
+            output_explanation = self.get_output_explanation(optimized_command, output)
             # Combine the selection explanation and output explanation
             full_explanation = f"{selection_explanation}\n\nOutput Analysis:\n{output_explanation}"
         else:
             full_explanation = selection_explanation
         
         # Log the step
-        self.logger.log_step(command, output, error, full_explanation)
+        self.logger.log_step(optimized_command, output, error, full_explanation)
         
         return output, error
     
@@ -288,3 +307,7 @@ class LabAutomation:
             print("Closing VM connection...")
             self.vm.close()
 
+# Entry point
+if __name__ == "__main__":
+    lab = LabAutomation(use_rdp=True)  # Use RDP by default
+    lab.run_lab()
