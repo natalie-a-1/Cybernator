@@ -1,0 +1,7 @@
+pyautogui==0.9.54
+openai==1.64.0
+pillow==11.1.0
+opencv-python>=4.8.0
+pyrdp==0.1.6
+paramiko==3.4.0
+python-dotenv==1.0.0
